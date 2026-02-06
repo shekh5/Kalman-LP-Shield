@@ -1,0 +1,151 @@
+# KalmanGuard Multi-Service Docker Compose
+# Runs all services needed for the KalmanGuard system
+
+version: '3.8'
+
+services:
+  # Agent Coordinator - Main orchestration service
+  agents:
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile
+    container_name: kalmanguard-agents
+    restart: unless-stopped
+    environment:
+      - NODE_ENV=production
+      - PORT=3001
+      - WS_PORT=3002
+      - REDIS_URL=redis://redis:6379
+      - RPC_URL_MAINNET=${RPC_URL_MAINNET}
+      - RPC_URL_ARBITRUM=${RPC_URL_ARBITRUM}
+      - RPC_URL_OPTIMISM=${RPC_URL_OPTIMISM}
+      - RPC_URL_POLYGON=${RPC_URL_POLYGON}
+      - RPC_URL_BASE=${RPC_URL_BASE}
+      - PRIVATE_KEY=${PRIVATE_KEY}
+      - FLASHBOTS_AUTH_KEY=${FLASHBOTS_AUTH_KEY}
+      - CHAINLINK_API_KEY=${CHAINLINK_API_KEY}
+      - KALMAN_ENGINE_URL=http://kalman-engine:8000
+    ports:
+      - "3001:3001"
+      - "3002:3002"
+    depends_on:
+      - redis
+      - kalman-engine
+    networks:
+      - kalmanguard-network
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:3001/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
+
+  # Kalman Filter Engine - Python-based filtering service
+  kalman-engine:
+    build:
+      context: ../kalman-engine
+      dockerfile: Dockerfile
+    container_name: kalmanguard-kalman-engine
+    restart: unless-stopped
+    environment:
+      - PYTHONUNBUFFERED=1
+      - PORT=8000
+      - REDIS_URL=redis://redis:6379
+    ports:
+      - "8000:8000"
+    depends_on:
+      - redis
+    networks:
+      - kalmanguard-network
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
+
+  # Frontend - React Dashboard
+  frontend:
+    build:
+      context: ../frontend
+      dockerfile: Dockerfile
+    container_name: kalmanguard-frontend
+    restart: unless-stopped
+    environment:
+      - VITE_AGENT_API_URL=http://agents:3001
+      - VITE_KALMAN_ENGINE_URL=http://kalman-engine:8000
+      - VITE_WS_ENDPOINT=ws://agents:3002
+    ports:
+      - "3000:80"
+    depends_on:
+      - agents
+    networks:
+      - kalmanguard-network
+
+  # Redis - Message queue and caching
+  redis:
+    image: redis:7-alpine
+    container_name: kalmanguard-redis
+    restart: unless-stopped
+    command: redis-server --appendonly yes --maxmemory 256mb --maxmemory-policy allkeys-lru
+    volumes:
+      - redis-data:/data
+    ports:
+      - "6379:6379"
+    networks:
+      - kalmanguard-network
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+
+  # Prometheus - Metrics collection
+  prometheus:
+    image: prom/prometheus:latest
+    container_name: kalmanguard-prometheus
+    restart: unless-stopped
+    volumes:
+      - ./prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - prometheus-data:/prometheus
+    ports:
+      - "9090:9090"
+    networks:
+      - kalmanguard-network
+    command:
+      - '--config.file=/etc/prometheus/prometheus.yml'
+      - '--storage.tsdb.path=/prometheus'
+      - '--web.console.libraries=/etc/prometheus/console_libraries'
+      - '--web.console.templates=/etc/prometheus/consoles'
+      - '--web.enable-lifecycle'
+
+  # Grafana - Metrics visualization
+  grafana:
+    image: grafana/grafana:latest
+    container_name: kalmanguard-grafana
+    restart: unless-stopped
+    environment:
+      - GF_SECURITY_ADMIN_PASSWORD=${GRAFANA_PASSWORD:-admin}
+      - GF_USERS_ALLOW_SIGN_UP=false
+    volumes:
+      - grafana-data:/var/lib/grafana
+      - ./grafana/provisioning:/etc/grafana/provisioning:ro
+    ports:
+      - "3030:3000"
+    depends_on:
+      - prometheus
+    networks:
+      - kalmanguard-network
+
+networks:
+  kalmanguard-network:
+    driver: bridge
+    name: kalmanguard-network
+
+volumes:
+  redis-data:
+    name: kalmanguard-redis-data
+  prometheus-data:
+    name: kalmanguard-prometheus-data
+  grafana-data:
+    name: kalmanguard-grafana-data
