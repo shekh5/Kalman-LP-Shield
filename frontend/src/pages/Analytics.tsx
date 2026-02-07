@@ -14,37 +14,45 @@ import {
   ResponsiveContainer,
   Legend,
 } from 'recharts';
-
-// Mock analytics data
-const priceHistory = Array.from({ length: 100 }, (_, i) => ({
-  time: i,
-  actual: 2000 + Math.sin(i * 0.1) * 100 + Math.random() * 20,
-  predicted: 2000 + Math.sin(i * 0.1) * 100,
-  upper: 2000 + Math.sin(i * 0.1) * 100 + 50,
-  lower: 2000 + Math.sin(i * 0.1) * 100 - 50,
-}));
-
-const riskHistory = Array.from({ length: 30 }, (_, i) => ({
-  day: `Day ${i + 1}`,
-  risk: Math.max(10, Math.min(90, 40 + Math.sin(i * 0.3) * 30 + Math.random() * 10)),
-  mevAttempts: Math.floor(Math.random() * 20),
-  feesCollected: 1000 + Math.random() * 500,
-}));
-
-const regimeDistribution = [
-  { name: 'Low', value: 35, color: '#22c55e' },
-  { name: 'Normal', value: 45, color: '#0ea5e9' },
-  { name: 'High', value: 15, color: '#f59e0b' },
-  { name: 'Extreme', value: 5, color: '#ef4444' },
-];
-
-const feePerformance = Array.from({ length: 24 }, (_, i) => ({
-  hour: `${i}:00`,
-  static: 0.3,
-  dynamic: 0.3 + Math.sin(i * 0.3) * 0.15 + Math.random() * 0.05,
-}));
+import { useDashboardStore, selectAnalytics } from '../store/dashboard';
 
 export function Analytics() {
+  const analytics = useDashboardStore(selectAnalytics);
+
+  const priceHistory = analytics.priceHistory.map((p, idx) => ({
+    idx,
+    actual: p.actual,
+    predicted: p.estimate,
+    upper: p.upper95,
+    lower: p.lower95,
+  }));
+
+  const riskHistory = analytics.riskHistory.map((r, idx) => ({
+    idx,
+    risk: r.risk,
+    mevAttempts: r.mevAttempts,
+    feesCollected: r.feesCollectedUsd,
+  }));
+
+  const regimeDistribution = analytics.regimeDistribution.map((d) => ({
+    name: d.regime[0].toUpperCase() + d.regime.slice(1),
+    value: Math.round(d.share * 100),
+    color:
+      d.regime === 'low'
+        ? '#22c55e'
+        : d.regime === 'normal'
+          ? '#0ea5e9'
+          : d.regime === 'high'
+            ? '#f59e0b'
+            : '#ef4444',
+  }));
+
+  const feePerformance = analytics.feePerformance.map((f) => ({
+    hour: new Date(f.t).getHours() + ':00',
+    static: f.staticFee,
+    dynamic: f.dynamicFee,
+  }));
+
   return (
     <div className="space-y-6">
       {/* Header */}
@@ -76,7 +84,7 @@ export function Analytics() {
           <ResponsiveContainer width="100%" height="100%">
             <AreaChart data={priceHistory}>
               <CartesianGrid strokeDasharray="3 3" stroke="#334155" />
-              <XAxis dataKey="time" stroke="#64748b" />
+              <XAxis dataKey="idx" stroke="#64748b" />
               <YAxis stroke="#64748b" domain={['auto', 'auto']} />
               <Tooltip
                 contentStyle={{
@@ -137,7 +145,7 @@ export function Analytics() {
             <ResponsiveContainer width="100%" height="100%">
               <AreaChart data={riskHistory}>
                 <CartesianGrid strokeDasharray="3 3" stroke="#334155" />
-                <XAxis dataKey="day" stroke="#64748b" tick={{ fontSize: 10 }} />
+                <XAxis dataKey="idx" stroke="#64748b" tick={{ fontSize: 10 }} />
                 <YAxis stroke="#64748b" domain={[0, 100]} />
                 <Tooltip
                   contentStyle={{
@@ -171,7 +179,7 @@ export function Analytics() {
             <ResponsiveContainer width="100%" height="100%">
               <BarChart data={riskHistory}>
                 <CartesianGrid strokeDasharray="3 3" stroke="#334155" />
-                <XAxis dataKey="day" stroke="#64748b" tick={{ fontSize: 10 }} />
+                <XAxis dataKey="idx" stroke="#64748b" tick={{ fontSize: 10 }} />
                 <YAxis stroke="#64748b" />
                 <Tooltip
                   contentStyle={{

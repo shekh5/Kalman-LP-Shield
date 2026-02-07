@@ -1,8 +1,6 @@
 # KalmanGuard Multi-Service Docker Compose
 # Runs all services needed for the KalmanGuard system
 
-version: '3.8'
-
 services:
   # Agent Coordinator - Main orchestration service
   agents:
@@ -14,20 +12,29 @@ services:
     environment:
       - NODE_ENV=production
       - PORT=3001
-      - WS_PORT=3002
+      - HOST=0.0.0.0
+      - DEMO_MODE=${DEMO_MODE:-true}
+      - TARGET_CHAINS=${TARGET_CHAINS:-}
+      - DEMO_TICK_MS=${DEMO_TICK_MS:-1500}
+      - DEMO_SEED=${DEMO_SEED:-1337}
       - REDIS_URL=redis://redis:6379
-      - RPC_URL_MAINNET=${RPC_URL_MAINNET}
-      - RPC_URL_ARBITRUM=${RPC_URL_ARBITRUM}
-      - RPC_URL_OPTIMISM=${RPC_URL_OPTIMISM}
-      - RPC_URL_POLYGON=${RPC_URL_POLYGON}
-      - RPC_URL_BASE=${RPC_URL_BASE}
-      - PRIVATE_KEY=${PRIVATE_KEY}
-      - FLASHBOTS_AUTH_KEY=${FLASHBOTS_AUTH_KEY}
-      - CHAINLINK_API_KEY=${CHAINLINK_API_KEY}
+      - RPC_URL_SEPOLIA=${RPC_URL_SEPOLIA:-https://0xrpc.io/sep}
+      - RPC_URL_ETHEREUM=${RPC_URL_ETHEREUM:-}
+      - RPC_URL_MAINNET=${RPC_URL_MAINNET:-}
+      - RPC_URL_ARBITRUM=${RPC_URL_ARBITRUM:-}
+      - RPC_URL_OPTIMISM=${RPC_URL_OPTIMISM:-}
+      - RPC_URL_POLYGON=${RPC_URL_POLYGON:-}
+      - RPC_URL_BASE=${RPC_URL_BASE:-}
+      - PRIVATE_KEY=${PRIVATE_KEY:-}
+      - FLASHBOTS_AUTH_KEY=${FLASHBOTS_AUTH_KEY:-}
+      - CHAINLINK_API_KEY=${CHAINLINK_API_KEY:-}
       - KALMAN_ENGINE_URL=http://kalman-engine:8000
+      - KALMANGUARD_HOOK_SEPOLIA=${KALMANGUARD_HOOK_SEPOLIA:-}
+      - AGENT_CONTROLLER_SEPOLIA=${AGENT_CONTROLLER_SEPOLIA:-}
+      - ENABLE_HEARTBEAT_TX=${ENABLE_HEARTBEAT_TX:-true}
+      - HEARTBEAT_TX_MS=${HEARTBEAT_TX_MS:-60000}
     ports:
       - "3001:3001"
-      - "3002:3002"
     depends_on:
       - redis
       - kalman-engine
@@ -72,9 +79,9 @@ services:
     container_name: kalmanguard-frontend
     restart: unless-stopped
     environment:
-      - VITE_AGENT_API_URL=http://agents:3001
-      - VITE_KALMAN_ENGINE_URL=http://kalman-engine:8000
-      - VITE_WS_ENDPOINT=ws://agents:3002
+      - VITE_AGENT_API_URL=
+      - VITE_KALMAN_ENGINE_URL=
+      - VITE_WS_ENDPOINT=
     ports:
       - "3000:80"
     depends_on:
@@ -125,11 +132,12 @@ services:
     container_name: kalmanguard-grafana
     restart: unless-stopped
     environment:
-      - GF_SECURITY_ADMIN_PASSWORD=${GRAFANA_PASSWORD:-admin}
+      - GF_SECURITY_ADMIN_PASSWORD=admin
       - GF_USERS_ALLOW_SIGN_UP=false
     volumes:
       - grafana-data:/var/lib/grafana
       - ./grafana/provisioning:/etc/grafana/provisioning:ro
+      - ./grafana/dashboards:/var/lib/grafana/dashboards:ro
     ports:
       - "3030:3000"
     depends_on:

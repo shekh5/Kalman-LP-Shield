@@ -54,6 +54,9 @@ contract AgentController {
     
     event ThresholdUpdated(string thresholdType, uint256 oldValue, uint256 newValue);
 
+    /// @notice Lightweight proof-of-life event for public testnet demos
+    event Heartbeat(address indexed sender, string agentName, uint256 blockNumber, uint256 timestamp);
+
     /*//////////////////////////////////////////////////////////////
                                  ENUMS
     //////////////////////////////////////////////////////////////*/
@@ -185,6 +188,16 @@ contract AgentController {
             revert CooldownNotElapsed();
         }
         _;
+    }
+
+    /*//////////////////////////////////////////////////////////////
+                           DEMO / HEARTBEAT
+    //////////////////////////////////////////////////////////////*/
+
+    /// @notice Emit a heartbeat event (useful for Sepolia judging demos)
+    /// @dev Does not require registration; intended as a cheap verifiable transaction.
+    function heartbeat(string calldata agentName) external {
+        emit Heartbeat(msg.sender, agentName, block.number, block.timestamp);
     }
 
     /*//////////////////////////////////////////////////////////////

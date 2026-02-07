@@ -24,6 +24,9 @@ RUN npm run build
 # Stage 2: Serve with nginx
 FROM nginx:alpine
 
+# Needed for container HEALTHCHECK
+RUN apk add --no-cache wget
+
 # Copy nginx config
 COPY nginx.conf /etc/nginx/conf.d/default.conf
 

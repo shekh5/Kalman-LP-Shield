@@ -5,7 +5,7 @@ import { RiskGauge } from '../components/charts/RiskGauge';
 import { FeeHeatmap } from '../components/charts/FeeHeatmap';
 import { AlertList } from '../components/AlertList';
 import { AgentStatusGrid } from '../components/AgentStatusGrid';
-import { useDashboardStore, selectKalmanState, selectAlerts } from '../store/dashboard';
+import { useDashboardStore, selectKalmanState, selectAlerts, selectPools } from '../store/dashboard';
 
 // Stat Card Component
 interface StatCardProps {
@@ -76,15 +76,17 @@ function RegimeBadge({ regime }: { regime: string }) {
 export function Dashboard() {
   const kalmanState = useDashboardStore(selectKalmanState);
   const alerts = useDashboardStore(selectAlerts);
+  const pools = useDashboardStore(selectPools);
   
-  // Mock data - in production, this comes from the agent system
-  const mockStats = {
-    totalProtected: '$12.5M',
-    totalPools: 24,
-    avgRiskScore: 35,
-    mevBlocked: 156,
-    feesCollected: '$45.2K',
-    activeAgents: 5,
+  const totalTvl = pools.reduce((sum, p) => sum + (p.tvlUsd || 0), 0);
+  const totalPools = pools.length;
+  const avgRiskScore = totalPools > 0 ? pools.reduce((sum, p) => sum + p.riskScore, 0) / totalPools : 0;
+  const mevBlocked = alerts.filter((a) => a.type === 'mev').length;
+
+  const formatUsd = (v: number) => {
+    if (v >= 1_000_000) return `$${(v / 1_000_000).toFixed(2)}M`;
+    if (v >= 1_000) return `$${(v / 1_000).toFixed(1)}K`;
+    return `$${v.toFixed(0)}`;
   };
 
   return (
@@ -102,30 +104,30 @@ export function Dashboard() {
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
         <StatCard
           title="Total Value Protected"
-          value={mockStats.totalProtected}
+          value={formatUsd(totalTvl)}
           change={5.2}
           icon={Shield}
           color="primary"
         />
         <StatCard
           title="Active Pools"
-          value={mockStats.totalPools}
+          value={totalPools}
           icon={Activity}
           color="success"
         />
         <StatCard
           title="MEV Attacks Blocked"
-          value={mockStats.mevBlocked}
+          value={mevBlocked}
           change={12.5}
           icon={Zap}
           color="warning"
         />
         <StatCard
           title="Current Risk Score"
-          value={mockStats.avgRiskScore}
+          value={Math.round(avgRiskScore)}
           change={-3.2}
           icon={AlertTriangle}
-          color={mockStats.avgRiskScore > 60 ? 'danger' : 'success'}
+          color={avgRiskScore > 60 ? 'danger' : 'success'}
         />
       </div>
 
@@ -153,7 +155,7 @@ export function Dashboard() {
             className="glass-panel p-6 h-full"
           >
             <h3 className="text-lg font-semibold mb-4">Risk Score</h3>
-            <RiskGauge score={mockStats.avgRiskScore} />
+            <RiskGauge score={Math.round(avgRiskScore)} />
           </motion.div>
         </div>
       </div>

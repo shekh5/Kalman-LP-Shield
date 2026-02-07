@@ -10,13 +10,13 @@ export function RiskGauge({ score }: RiskGaugeProps) {
   
   // Determine color based on score
   const getColor = (score: number) => {
-    if (score < 30) return { color: '#22c55e', label: 'Low Risk', bg: 'rgba(34, 197, 94, 0.1)' };
-    if (score < 60) return { color: '#f59e0b', label: 'Moderate Risk', bg: 'rgba(245, 158, 11, 0.1)' };
-    if (score < 80) return { color: '#f97316', label: 'High Risk', bg: 'rgba(249, 115, 22, 0.1)' };
-    return { color: '#ef4444', label: 'Extreme Risk', bg: 'rgba(239, 68, 68, 0.1)' };
+    if (score < 30) return { color: '#22c55e', label: 'Low Risk' };
+    if (score < 60) return { color: '#f59e0b', label: 'Moderate Risk' };
+    if (score < 80) return { color: '#f97316', label: 'High Risk' };
+    return { color: '#ef4444', label: 'Extreme Risk' };
   };
 
-  const { color, label, bg } = getColor(clampedScore);
+  const { color, label } = getColor(clampedScore);
   
   // Calculate the arc path
   const radius = 80;

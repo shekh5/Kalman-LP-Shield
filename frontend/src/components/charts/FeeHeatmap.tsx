@@ -1,21 +1,57 @@
 import { useMemo } from 'react';
-
-// Generate mock heatmap data
-const generateHeatmapData = () => {
-  const hours = Array.from({ length: 24 }, (_, i) => i);
-  const days = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
-  
-  return days.map(day => 
-    hours.map(hour => ({
-      day,
-      hour,
-      fee: Math.round(10 + Math.random() * 90), // 10-100 bps
-    }))
-  ).flat();
-};
+import { useDashboardStore, selectAnalytics } from '../../store/dashboard';
 
 export function FeeHeatmap() {
-  const data = useMemo(() => generateHeatmapData(), []);
+  const analytics = useDashboardStore(selectAnalytics);
+
+  const { data, avgFeeBps, peakHoursLabel, lowHoursLabel } = useMemo(() => {
+    const hours = Array.from({ length: 24 }, (_, i) => i);
+    const days = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
+
+    // Aggregate dynamic fees by (day,hour)
+    type CellKey = `${string}:${number}`;
+    const sums = new Map<CellKey, { sum: number; count: number }>();
+
+    for (const p of analytics.feePerformance) {
+      const d = new Date(p.t);
+      const day = days[(d.getDay() + 6) % 7]; // JS: Sun=0, convert so Mon=0
+      const hour = d.getHours();
+      const feeBps = Math.round(p.dynamicFee * 1e4);
+      const key = `${day}:${hour}` as CellKey;
+      const cur = sums.get(key) ?? { sum: 0, count: 0 };
+      sums.set(key, { sum: cur.sum + feeBps, count: cur.count + 1 });
+    }
+
+    const flat = days
+      .map((day) =>
+        hours.map((hour) => {
+          const key = `${day}:${hour}` as CellKey;
+          const cur = sums.get(key);
+          const fee = cur ? Math.round(cur.sum / cur.count) : 0;
+          return { day, hour, fee };
+        })
+      )
+      .flat();
+
+    const allFees = flat.map((c) => c.fee).filter((f) => f > 0);
+    const avgFeeBps = allFees.length ? Math.round(allFees.reduce((a, b) => a + b, 0) / allFees.length) : 0;
+
+    // Compute per-hour average across week for peak/low labels
+    const perHour = hours.map((h) => {
+      const fees = flat.filter((c) => c.hour === h).map((c) => c.fee).filter((f) => f > 0);
+      const avg = fees.length ? fees.reduce((a, b) => a + b, 0) / fees.length : 0;
+      return { h, avg };
+    });
+
+    const sorted = [...perHour].sort((a, b) => b.avg - a.avg);
+    const peak = sorted.slice(0, 4).map((x) => x.h).sort((a, b) => a - b);
+    const low = sorted.slice(-4).map((x) => x.h).sort((a, b) => a - b);
+
+    const peakHoursLabel = peak.length ? `${peak[0].toString().padStart(2, '0')}:00-${(peak[peak.length - 1] + 1).toString().padStart(2, '0')}:00` : '—';
+    const lowHoursLabel = low.length ? `${low[0].toString().padStart(2, '0')}:00-${(low[low.length - 1] + 1).toString().padStart(2, '0')}:00` : '—';
+
+    return { data: flat, avgFeeBps, peakHoursLabel, lowHoursLabel };
+  }, [analytics.feePerformance]);
   
   const getColor = (fee: number) => {
     // Color scale from green (low fees) to red (high fees)
@@ -55,13 +91,13 @@ export function FeeHeatmap() {
               <div className="flex-1 flex gap-0.5">
                 {hours.map(hour => {
                   const cell = data.find(d => d.day === day && d.hour === hour);
-                  const fee = cell?.fee || 30;
+                  const fee = cell?.fee || 0;
                   
                   return (
                     <div
                       key={`${day}-${hour}`}
-                      className={`flex-1 h-6 rounded-sm ${getColor(fee)} cursor-pointer transition-all hover:opacity-80 hover:scale-110`}
-                      title={`${day} ${hour}:00 - Fee: ${fee} bps`}
+                      className={`flex-1 h-6 rounded-sm ${getColor(fee || 0)} cursor-pointer transition-all hover:opacity-80 hover:scale-110`}
+                      title={`${day} ${hour}:00 - Fee: ${fee || 0} bps`}
                     />
                   );
                 })}
@@ -89,15 +125,15 @@ export function FeeHeatmap() {
       <div className="grid grid-cols-3 gap-4 pt-4 border-t border-dark-700">
         <div className="text-center">
           <p className="text-xs text-dark-400">Avg Fee</p>
-          <p className="text-lg font-semibold text-white">32 bps</p>
+          <p className="text-lg font-semibold text-white">{avgFeeBps || '—'} {avgFeeBps ? 'bps' : ''}</p>
         </div>
         <div className="text-center">
           <p className="text-xs text-dark-400">Peak Hours</p>
-          <p className="text-lg font-semibold text-white">14:00-18:00</p>
+          <p className="text-lg font-semibold text-white">{peakHoursLabel}</p>
         </div>
         <div className="text-center">
           <p className="text-xs text-dark-400">Low Hours</p>
-          <p className="text-lg font-semibold text-white">02:00-06:00</p>
+          <p className="text-lg font-semibold text-white">{lowHoursLabel}</p>
         </div>
       </div>
     </div>

@@ -2,11 +2,12 @@
 
 ## Prerequisites
 
-- Docker and Docker Compose
+- Docker (Docker Desktop on Windows/Mac includes `docker compose`)
 - Node.js 20+ (for local development)
 - Python 3.11+ (for local development)
 - Foundry (for smart contract deployment)
-- Access to RPC endpoints for target chains
+
+> For hackathon judging, you can run in **DEMO_MODE** with **no API keys** and no RPC URLs.
 
 ## Local Development
 
@@ -17,18 +18,20 @@
 git clone https://github.com/your-org/kalmanguard
 cd kalmanguard
 
-# Copy environment file
+# Copy environment file (optional)
 cp .env.example .env
 
-# Edit .env with your configuration
-# At minimum, you need:
-# - RPC URLs for your target chains
-# - Private key for testing
+# Judge-friendly demo mode (no keys required)
+# DEMO_MODE=true is the default in docker-compose.yml
 
 # Start all services
 ./scripts/start-dev.sh     # Linux/Mac
 .\scripts\start-dev.ps1    # Windows PowerShell
 ```
+
+For the Sepolia judging flow (deploy + local brain + local face), use:
+
+- `docs/JUDGE_DEMO_SEPOLIA.md`
 
 ### Service URLs
 - Frontend: http://localhost:3000
@@ -86,6 +89,35 @@ AGENT_CONTROLLER_MAINNET=0x...
 
 ## Production Deployment
 
+### One-VM “Judge Demo” Deployment (Recommended)
+
+This is the simplest internet deployment that works with the live UI using `/api/*` and `/ws` behind the frontend reverse proxy.
+
+1) Provision a VM (e.g. Ubuntu 22.04) and open inbound TCP ports:
+  - `3000` (KalmanGuard UI)
+  - optional: `9090` (Prometheus), `3030` (Grafana)
+
+2) Install Docker and Compose v2.
+
+3) Deploy:
+
+```bash
+git clone <your-repo-url>
+cd kalmanguard
+
+# Optional: create .env for overrides
+cp .env.example .env
+
+# Run in demo mode (default): no RPC URLs or private keys required
+docker compose -f docker/docker-compose.yml up -d --build
+```
+
+4) Visit:
+  - UI: `http://<server-ip>:3000`
+  - Agents API: `http://<server-ip>:3001/api/state`
+
+If you want HTTPS, place a TLS-terminating reverse proxy (Caddy/Traefik/NGINX) in front of port `3000`.
+
 ### Infrastructure Requirements
 
 | Service | CPU | Memory | Storage |
@@ -102,7 +134,7 @@ AGENT_CONTROLLER_MAINNET=0x...
 #### 1. Set up Infrastructure
 ```bash
 # Using AWS ECS or EKS
-# See terraform/ directory for IaC templates
+# (Bring-your-own IaC: Terraform templates are not included in this repo.)
 ```
 
 #### 2. Configure Secrets
@@ -248,10 +280,10 @@ docker stats kalmanguard-agents
 
 ```bash
 # View all logs
-docker-compose logs -f
+docker compose -f docker/docker-compose.yml logs -f
 
 # View specific service
-docker-compose logs -f agents
+docker compose -f docker/docker-compose.yml logs -f agents
 
 # Filter for errors
 docker-compose logs agents 2>&1 | grep ERROR

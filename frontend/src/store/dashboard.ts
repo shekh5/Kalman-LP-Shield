@@ -25,24 +25,42 @@ export interface AgentStatus {
 }
 
 export interface PoolInfo {
-  address: string;
+  id: string;
+  chainId: number;
+  chainName: string;
   token0: string;
   token1: string;
-  fee: number;
-  liquidity: bigint;
+  baseFeeBps: number;
+  currentFeeBps: number;
+  tvlUsd: number;
+  volume24hUsd: number;
+  price: number;
   riskScore: number;
-  regime: VolatilityRegime;
-  currentFee: number;
-  volume24h: number;
+  kalman: {
+    velocity: number;
+    acceleration: number;
+    volatility: number;
+    beta: number;
+    confidence: number;
+    regime: VolatilityRegime;
+  };
+  lastUpdate: number;
 }
 
 export interface AlertInfo {
   id: string;
-  type: 'mev' | 'volatility' | 'risk' | 'emergency';
+  type: 'mev' | 'volatility' | 'risk' | 'emergency' | 'info';
   severity: 'info' | 'warning' | 'critical';
   message: string;
   timestamp: number;
-  poolAddress?: string;
+  poolId?: string;
+}
+
+export interface AnalyticsSnapshot {
+  priceHistory: Array<{ t: number; actual: number; estimate: number; lower95: number; upper95: number }>;
+  riskHistory: Array<{ t: number; risk: number; mevAttempts: number; feesCollectedUsd: number }>;
+  feePerformance: Array<{ t: number; staticFee: number; dynamicFee: number }>;
+  regimeDistribution: Array<{ regime: VolatilityRegime; share: number }>;
 }
 
 // Store State
@@ -60,6 +78,9 @@ interface DashboardState {
   
   // Alerts
   alerts: AlertInfo[];
+
+  // Analytics
+  analytics: AnalyticsSnapshot;
   
   // UI State
   isConnected: boolean;
@@ -71,12 +92,22 @@ interface DashboardState {
   addKalmanHistory: (state: KalmanState) => void;
   updateAgent: (id: string, update: Partial<AgentStatus>) => void;
   setAgents: (agents: AgentStatus[]) => void;
-  updatePool: (address: string, update: Partial<PoolInfo>) => void;
+  updatePool: (id: string, update: Partial<PoolInfo>) => void;
   setPools: (pools: PoolInfo[]) => void;
-  selectPool: (address: string | null) => void;
+  selectPool: (id: string | null) => void;
   addAlert: (alert: Omit<AlertInfo, 'id' | 'timestamp'>) => void;
   dismissAlert: (id: string) => void;
   clearAlerts: () => void;
+  setAlerts: (alerts: AlertInfo[]) => void;
+  setAnalytics: (analytics: AnalyticsSnapshot) => void;
+  ingestSnapshot: (snapshot: {
+    demoMode?: boolean;
+    timestamp?: number;
+    pools: PoolInfo[];
+    agents: AgentStatus[];
+    alerts: AlertInfo[];
+    analytics: AnalyticsSnapshot;
+  }) => void;
   setConnected: (connected: boolean) => void;
   setLoading: (loading: boolean) => void;
   setError: (error: string | null) => void;
@@ -94,6 +125,18 @@ const initialKalmanState: KalmanState = {
   timestamp: Date.now(),
 };
 
+const initialAnalytics: AnalyticsSnapshot = {
+  priceHistory: [],
+  riskHistory: [],
+  feePerformance: [],
+  regimeDistribution: [
+    { regime: 'low', share: 0 },
+    { regime: 'normal', share: 0 },
+    { regime: 'high', share: 0 },
+    { regime: 'extreme', share: 0 },
+  ],
+};
+
 // Create store
 export const useDashboardStore = create<DashboardState>()(
   subscribeWithSelector((set, get) => ({
@@ -104,6 +147,7 @@ export const useDashboardStore = create<DashboardState>()(
     pools: [],
     selectedPool: null,
     alerts: [],
+    analytics: initialAnalytics,
     isConnected: false,
     isLoading: false,
     error: null,
@@ -128,16 +172,16 @@ export const useDashboardStore = create<DashboardState>()(
     
     setAgents: (agents) => set({ agents }),
     
-    updatePool: (address, update) =>
+    updatePool: (id, update) =>
       set((state) => ({
         pools: state.pools.map((pool) =>
-          pool.address === address ? { ...pool, ...update } : pool
+          pool.id === id ? { ...pool, ...update } : pool
         ),
       })),
     
     setPools: (pools) => set({ pools }),
     
-    selectPool: (address) => set({ selectedPool: address }),
+    selectPool: (id) => set({ selectedPool: id }),
     
     addAlert: (alert) =>
       set((state) => ({
@@ -157,6 +201,50 @@ export const useDashboardStore = create<DashboardState>()(
       })),
     
     clearAlerts: () => set({ alerts: [] }),
+
+    setAlerts: (alerts) => set({ alerts }),
+    setAnalytics: (analytics) => set({ analytics }),
+
+    ingestSnapshot: (snapshot) => {
+      set({
+        pools: snapshot.pools,
+        agents: snapshot.agents,
+        alerts: snapshot.alerts,
+        analytics: snapshot.analytics,
+      });
+
+      // Keep kalman state in-sync with selected (or first) pool
+      const pools = snapshot.pools;
+      const selectedId = get().selectedPool;
+      const pool = (selectedId && pools.find((p) => p.id === selectedId)) || pools[0];
+      if (pool) {
+        set({
+          kalmanState: {
+            price: pool.price,
+            velocity: pool.kalman.velocity,
+            acceleration: pool.kalman.acceleration,
+            volatility: pool.kalman.volatility,
+            beta: pool.kalman.beta,
+            confidence: pool.kalman.confidence,
+            regime: pool.kalman.regime,
+            timestamp: pool.lastUpdate,
+          },
+        });
+      }
+
+      // Maintain a chart-friendly history from analytics
+      const hist = snapshot.analytics.priceHistory.map((p) => ({
+        price: p.estimate,
+        velocity: 0,
+        acceleration: 0,
+        volatility: 0,
+        beta: 0,
+        confidence: 1,
+        regime: 'normal' as const,
+        timestamp: p.t,
+      }));
+      set({ kalmanHistory: hist.slice(-300) });
+    },
     
     setConnected: (connected) => set({ isConnected: connected }),
     
@@ -172,7 +260,9 @@ export const selectKalmanHistory = (state: DashboardState) => state.kalmanHistor
 export const selectAgents = (state: DashboardState) => state.agents;
 export const selectPools = (state: DashboardState) => state.pools;
 export const selectSelectedPool = (state: DashboardState) => 
-  state.pools.find(p => p.address === state.selectedPool);
+  state.pools.find(p => p.id === state.selectedPool);
 export const selectAlerts = (state: DashboardState) => state.alerts;
 export const selectCriticalAlerts = (state: DashboardState) =>
   state.alerts.filter((a) => a.severity === 'critical');
+
+export const selectAnalytics = (state: DashboardState) => state.analytics;

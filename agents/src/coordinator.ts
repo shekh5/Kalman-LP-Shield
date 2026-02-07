@@ -5,7 +5,11 @@
  */
 
 import dotenv from 'dotenv';
+import { ethers } from 'ethers';
 import { DEFAULT_CHAINS, AgentRole, ChainConfig } from './config';
+import { startHttpServer } from './api/httpServer';
+import { StateStore } from './api/stateStore';
+import { DemoRunner } from './demo/demoRunner';
 import {
   PriceMonitorAgent,
   MEVDetectorAgent,
@@ -35,9 +39,27 @@ class AgentCoordinator {
   private isRunning = false;
   private config: CoordinatorConfig;
 
+  private store: StateStore;
+  private apiServer: ReturnType<typeof startHttpServer> | null = null;
+  private demoRunner: DemoRunner | null = null;
+
   constructor(config: Partial<CoordinatorConfig> = {}) {
+    const requested = (process.env.TARGET_CHAINS || process.env.CHAINS || '')
+      .split(',')
+      .map((s) => s.trim())
+      .filter(Boolean);
+    const defaultChains = requested.length
+      ? requested
+          .map((name) => DEFAULT_CHAINS[name])
+          .filter(Boolean)
+      : Object.values(DEFAULT_CHAINS);
+
+    if (requested.length && defaultChains.length === 0) {
+      throw new Error(`TARGET_CHAINS/CHAINS did not match any known chains: ${requested.join(',')}`);
+    }
+
     this.config = {
-      chains: Object.values(DEFAULT_CHAINS),
+      chains: defaultChains,
       updateInterval: 12000,
       enabledAgents: [
         AgentRole.PRICE_MONITOR,
@@ -48,6 +70,9 @@ class AgentCoordinator {
       ],
       ...config,
     };
+
+    const demoMode = (process.env.DEMO_MODE || 'true').toLowerCase() === 'true';
+    this.store = new StateStore(demoMode);
   }
 
   /**
@@ -57,6 +82,31 @@ class AgentCoordinator {
     logger.info('Starting KalmanGuard Agent Coordinator');
 
     try {
+      // Start HTTP + WebSocket API server first (so judges can see something immediately)
+      const port = Number(process.env.PORT || process.env.AGENT_API_PORT || 3001);
+      const host = process.env.HOST || '0.0.0.0';
+      this.apiServer = startHttpServer(this.store, { port, host });
+      logger.info(`Agent API listening on http://${host}:${port} (ws: /ws)`);
+
+      const kalmanEngineUrl = process.env.KALMAN_ENGINE_URL || 'http://localhost:8000';
+
+      // In demo mode, run synthetic pools continuously and broadcast snapshots to the UI
+      if (this.store.getPublicState().demoMode) {
+        this.demoRunner = new DemoRunner(this.store, {
+          kalmanEngineUrl,
+          tickMs: Number(process.env.DEMO_TICK_MS || 1500),
+          seed: Number(process.env.DEMO_SEED || 1337),
+        });
+
+        void this.demoRunner.start((snapshot) => {
+          this.apiServer?.broadcast({ type: 'snapshot', data: snapshot });
+        });
+
+        this.isRunning = true;
+        logger.info('Demo mode started (no API keys required)');
+        return;
+      }
+
       // Initialize agents based on configuration
       await this.initializeAgents();
 
@@ -69,13 +119,114 @@ class AgentCoordinator {
       this.isRunning = true;
       logger.info('All agents started successfully');
 
+      // Bridge key agent events into the public state store for the frontend
+      if (this.priceAgent) {
+        this.priceAgent.onPriceUpdate((poolId, state) => {
+          const id = `live:${poolId}`;
+          const now = Date.now();
+          const chain = this.config.chains[0];
+
+          // Create if missing
+          const existing = this.store.getPools().find((p) => p.id === id);
+          if (!existing) {
+            this.store.upsertPool({
+              id,
+              chainId: chain?.id ?? 1,
+              chainName: chain?.name ?? 'ethereum',
+              token0: poolId.split('-')[0]?.toUpperCase() || 'TOKEN0',
+              token1: poolId.split('-')[1]?.toUpperCase() || 'TOKEN1',
+              baseFeeBps: 30,
+              currentFeeBps: 30,
+              tvlUsd: 0,
+              volume24hUsd: 0,
+              price: state.price,
+              kalman: {
+                velocity: state.velocity,
+                acceleration: state.acceleration,
+                volatility: state.volatility,
+                beta: state.beta,
+                confidence: state.confidence / 10000,
+                regime: (String(state.regime).toLowerCase().includes('volatile') || String(state.regime).toLowerCase().includes('high'))
+                  ? 'high'
+                  : String(state.regime).toLowerCase().includes('crisis')
+                    ? 'extreme'
+                    : String(state.regime).toLowerCase().includes('stable')
+                      ? 'low'
+                      : 'normal',
+              },
+              riskScore: 0,
+              lastUpdate: now,
+            });
+          } else {
+            this.store.updatePool(id, {
+              price: state.price,
+              kalman: {
+                ...existing.kalman,
+                velocity: state.velocity,
+                acceleration: state.acceleration,
+                volatility: state.volatility,
+                beta: state.beta,
+                confidence: state.confidence / 10000,
+              },
+            });
+          }
+
+          this.apiServer?.broadcast({ type: 'snapshot', data: this.store.getPublicState() });
+        });
+      }
+
+      if (this.riskAgent) {
+        this.riskAgent.onRiskUpdate((assessment) => {
+          const id = `live:${assessment.poolId}`;
+          this.store.updatePool(id, { riskScore: Math.round((assessment.riskScore / 10000) * 100) });
+          this.apiServer?.broadcast({ type: 'snapshot', data: this.store.getPublicState() });
+        });
+      }
+
       // Start health monitoring
       this.startHealthMonitoring();
+
+      // Optional: send a cheap on-chain heartbeat tx (useful for Sepolia judge demos)
+      this.startHeartbeatLoop();
 
     } catch (error) {
       logger.error('Failed to start coordinator:', error);
       throw error;
     }
+  }
+
+  private startHeartbeatLoop(): void {
+    const chain = this.config.chains[0];
+    if (!chain) return;
+
+    const enabled = (process.env.ENABLE_HEARTBEAT_TX || 'true').toLowerCase() === 'true';
+    if (!enabled) return;
+
+    if (!this.executionAgent) return;
+    if (!chain.agentControllerAddress || chain.agentControllerAddress === '0x0000000000000000000000000000000000000000') return;
+
+    // Heartbeat every 60s by default
+    const intervalMs = Number(process.env.HEARTBEAT_TX_MS || 60000);
+    const iface = new ethers.Interface(['function heartbeat(string agentName)']);
+
+    setInterval(() => {
+      try {
+        const data = iface.encodeFunctionData('heartbeat', ['kalmanguard-execution-agent']);
+        void this.executionAgent!.submit({
+          id: `hb_${Date.now()}`,
+          chainName: chain.name,
+          to: chain.agentControllerAddress,
+          data,
+          value: 0n,
+          gasLimit: 150000n,
+          priority: 'low',
+          usePrivate: false,
+          deadline: Date.now() + 5 * 60 * 1000,
+        });
+      } catch {
+        // ignore
+      }
+    }, intervalMs);
   }
 
   /**
@@ -211,6 +362,11 @@ class AgentCoordinator {
     logger.info('Stopping Agent Coordinator');
     this.isRunning = false;
 
+    if (this.demoRunner) {
+      this.demoRunner.stop();
+      this.demoRunner = null;
+    }
+
     const stopPromises: Promise<void>[] = [];
 
     if (this.priceAgent) stopPromises.push(this.priceAgent.stop());
@@ -220,6 +376,11 @@ class AgentCoordinator {
     if (this.crossChainAgent) stopPromises.push(this.crossChainAgent.stop());
 
     await Promise.all(stopPromises);
+
+    if (this.apiServer) {
+      await this.apiServer.close();
+      this.apiServer = null;
+    }
     logger.info('All agents stopped');
   }
 

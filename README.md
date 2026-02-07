@@ -77,67 +77,81 @@ kalmanguard/
 
 ### Prerequisites
 
-- Node.js >= 18.0
-- Python >= 3.11
-- Foundry
-- Docker (optional)
+- **Node.js** >= 18.0 ([download](https://nodejs.org/))
+- **Docker Desktop** ([download](https://www.docker.com/products/docker-desktop/))
+- **Foundry** (optional, for contract deployment) ([install](https://getfoundry.sh/))
 
-### Installation
+### One-Click Local Demo (Recommended)
 
-```bash
-# Clone repository
-git clone https://github.com/your-org/kalmanguard.git
-cd kalmanguard
+The fastest way to run KalmanGuard locally:
 
-# Install contract dependencies
-cd contracts && forge install
-
-# Install agent dependencies
-cd ../agents && npm install
-
-# Install Python dependencies
-cd ../kalman-engine && pip install -r requirements.txt
-
-# Install frontend dependencies
-cd ../frontend && npm install
+```powershell
+# Windows PowerShell
+.\start.ps1 -Mode demo
 ```
 
-### Run Development
+This will:
+1. Build and start Docker containers (agents + kalman-engine + redis)
+2. Wait for backend health
+3. Start the Vite frontend dev server
+
+Open **http://localhost:5173** in your browser.
+
+### Manual Setup
 
 ```bash
-# Terminal 1: Run local blockchain
-cd contracts && anvil
+# 1. Start backend services
+docker compose -f docker/docker-compose.yml up -d agents kalman-engine redis
 
-# Terminal 2: Deploy contracts
-forge script script/Deploy.s.sol --rpc-url localhost:8545 --broadcast
+# 2. Verify backend is running
+curl http://localhost:3001/health
 
-# Terminal 3: Run agents
-cd agents && npm run dev
-
-# Terminal 4: Run frontend
-cd frontend && npm run dev
+# 3. Start frontend
+cd frontend && npm install && npm run dev
 ```
+
+### Sepolia Testnet Demo (For Judges)
+
+See [docs/JUDGE_DEMO_SEPOLIA.md](docs/JUDGE_DEMO_SEPOLIA.md) for the 3-phase on-chain proof flow:
+1. **Phase 1:** Deploy & verify contracts on Sepolia
+2. **Phase 2:** Run backend connected to Sepolia (`DEMO_MODE=false`)
+3. **Phase 3:** Run frontend locally
+
+Safety notes:
+- Sepolia uses **test ETH only** (no real-money ETH is spent), but transactions still consume Sepolia gas.
+- Use a **separate burner wallet** funded from a Sepolia faucet.
+- The deploy script refuses to run on the wrong network by default (expects Sepolia `chainId=11155111`). Override with `EXPECTED_CHAIN_ID` only if you really mean it.
+
+### Endpoints (Local)
+
+| Service | URL |
+|---------|-----|
+| Frontend | http://localhost:5173 |
+| Agent API | http://localhost:3001 |
+| Kalman Engine | http://localhost:8000 |
+| WebSocket | ws://localhost:3001/ws |
+| Prometheus | http://localhost:9090 |
+| Grafana | http://localhost:3030 |
 
 ## 🔧 Configuration
 
-Create `.env` files in respective directories:
+All configuration is in the root `.env` file. Copy from `.env.example`:
 
 ```bash
-# contracts/.env
-PRIVATE_KEY=your_private_key
-RPC_URL_ETHEREUM=https://eth-mainnet.g.alchemy.com/v2/...
-RPC_URL_BASE=https://mainnet.base.org
-RPC_URL_ARBITRUM=https://arb1.arbitrum.io/rpc
-
-# agents/.env
-PRICE_AGENT_KEY=...
-MEV_AGENT_KEY=...
-RISK_AGENT_KEY=...
-EXEC_AGENT_KEY=...
-CROSSCHAIN_AGENT_KEY=...
-LIFI_API_KEY=...
-FLASHBOTS_RPC=https://relay.flashbots.net
+cp .env.example .env
 ```
+
+**Required for Demo Mode (default):** Nothing! Demo mode works out of the box.
+
+**Required for Sepolia Mode:**
+```bash
+PRIVATE_KEY=0x...           # 32-byte hex deployer key
+ETHERSCAN_API_KEY=...       # For contract verification
+KALMANGUARD_HOOK_SEPOLIA=   # Paste after deployment
+AGENT_CONTROLLER_SEPOLIA=   # Paste after deployment
+```
+
+See [.env.example](.env.example) for all options.
 
 ## 📊 Performance Metrics
 

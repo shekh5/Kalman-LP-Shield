@@ -86,11 +86,37 @@ export abstract class BaseAgent {
     this.isRunning = true;
     
     try {
+      await this.validateProviders();
       await this.initialize();
       this.runLoop();
     } catch (error) {
       this.handleError(error as Error);
       throw error;
+    }
+  }
+
+  private async validateProviders(): Promise<void> {
+    const allowMainnet = String(process.env.ALLOW_MAINNET || '').toLowerCase() === 'true';
+
+    for (const chain of this.chains) {
+      const provider = this.providers.get(chain.name);
+      if (!provider) throw new Error(`Provider not found for chain: ${chain.name}`);
+
+      const network = await provider.getNetwork();
+      const actualChainId = Number(network.chainId);
+
+      if (actualChainId !== chain.id) {
+        throw new Error(
+          `RPC chainId mismatch for ${chain.name}: expected ${chain.id}, got ${actualChainId}. Check RPC_URL_* env vars.`
+        );
+      }
+
+      // Safety: never allow accidental real ETH spending on mainnet unless explicitly opted-in.
+      if (actualChainId === 1 && !allowMainnet) {
+        throw new Error(
+          `Refusing to run on Ethereum mainnet for safety. Set ALLOW_MAINNET=true to override.`
+        );
+      }
     }
   }
 
@@ -166,6 +192,13 @@ export abstract class BaseAgent {
    */
   protected abstract initialize(): Promise<void>;
   protected abstract execute(): Promise<void>;
-  protected abstract cleanup(): Promise<void>;
+  
+  /**
+   * Cleanup (optional override)
+   */
+  protected async cleanup(): Promise<void> {
+    // Default: no-op
+  }
+  
   abstract report(): Promise<AgentReport>;
 }

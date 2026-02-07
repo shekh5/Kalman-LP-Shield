@@ -46,6 +46,9 @@ FROM node:20-alpine AS runtime
 
 WORKDIR /app
 
+# Needed for container HEALTHCHECK (and handy for debugging)
+RUN apk add --no-cache wget
+
 # Install production dependencies for agents
 COPY agents/package*.json ./agents/
 RUN cd agents && npm ci --production

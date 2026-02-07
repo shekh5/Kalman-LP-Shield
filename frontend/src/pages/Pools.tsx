@@ -1,70 +1,7 @@
 import { motion } from 'framer-motion';
 import { Search, Filter, Plus, ArrowUpRight, ArrowDownRight } from 'lucide-react';
 import { useState } from 'react';
-
-// Mock pool data
-const mockPools = [
-  {
-    id: '1',
-    token0: 'ETH',
-    token1: 'USDC',
-    fee: 30,
-    tvl: 5_200_000,
-    volume24h: 12_500_000,
-    riskScore: 25,
-    regime: 'normal',
-    currentFee: 30,
-    apy: 12.5,
-  },
-  {
-    id: '2',
-    token0: 'WBTC',
-    token1: 'ETH',
-    fee: 30,
-    tvl: 8_100_000,
-    volume24h: 8_200_000,
-    riskScore: 42,
-    regime: 'high',
-    currentFee: 45,
-    apy: 8.2,
-  },
-  {
-    id: '3',
-    token0: 'ARB',
-    token1: 'ETH',
-    fee: 100,
-    tvl: 2_300_000,
-    volume24h: 4_100_000,
-    riskScore: 65,
-    regime: 'high',
-    currentFee: 75,
-    apy: 24.5,
-  },
-  {
-    id: '4',
-    token0: 'USDC',
-    token1: 'USDT',
-    fee: 1,
-    tvl: 15_000_000,
-    volume24h: 45_000_000,
-    riskScore: 8,
-    regime: 'low',
-    currentFee: 1,
-    apy: 4.2,
-  },
-  {
-    id: '5',
-    token0: 'LINK',
-    token1: 'ETH',
-    fee: 30,
-    tvl: 1_800_000,
-    volume24h: 2_100_000,
-    riskScore: 38,
-    regime: 'normal',
-    currentFee: 35,
-    apy: 15.8,
-  },
-];
+import { useDashboardStore } from '../store/dashboard';
 
 const regimeColors = {
   low: 'text-success-400 bg-success-900/30',
@@ -87,11 +24,13 @@ export function Pools() {
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedRegime, setSelectedRegime] = useState<string | null>(null);
 
-  const filteredPools = mockPools.filter((pool) => {
+  const pools = useDashboardStore((s) => s.pools);
+
+  const filteredPools = pools.filter((pool) => {
     const matchesSearch =
       pool.token0.toLowerCase().includes(searchQuery.toLowerCase()) ||
       pool.token1.toLowerCase().includes(searchQuery.toLowerCase());
-    const matchesRegime = !selectedRegime || pool.regime === selectedRegime;
+    const matchesRegime = !selectedRegime || pool.kalman.regime === selectedRegime;
     return matchesSearch && matchesRegime;
   });
 
@@ -182,15 +121,15 @@ export function Pools() {
                       <p className="font-medium text-white">
                         {pool.token0}/{pool.token1}
                       </p>
-                      <p className="text-xs text-dark-400">{pool.fee / 100}% base fee</p>
+                      <p className="text-xs text-dark-400">{(pool.baseFeeBps / 100).toFixed(2)}% base fee</p>
                     </div>
                   </div>
                 </td>
                 <td className="p-4 text-right">
-                  <p className="font-medium text-white">{formatCurrency(pool.tvl)}</p>
+                  <p className="font-medium text-white">{formatCurrency(pool.tvlUsd)}</p>
                 </td>
                 <td className="p-4 text-right">
-                  <p className="font-medium text-white">{formatCurrency(pool.volume24h)}</p>
+                  <p className="font-medium text-white">{formatCurrency(pool.volume24hUsd)}</p>
                 </td>
                 <td className="p-4 text-right">
                   <div className="inline-flex items-center gap-2">
@@ -219,26 +158,26 @@ export function Pools() {
                 <td className="p-4 text-center">
                   <span
                     className={`px-2 py-1 rounded-md text-xs font-medium capitalize ${
-                      regimeColors[pool.regime as keyof typeof regimeColors]
+                      regimeColors[pool.kalman.regime as keyof typeof regimeColors]
                     }`}
                   >
-                    {pool.regime}
+                    {pool.kalman.regime}
                   </span>
                 </td>
                 <td className="p-4 text-right">
                   <div className="flex items-center justify-end gap-1">
                     <span className="font-medium text-white">
-                      {(pool.currentFee / 100).toFixed(2)}%
+                      {(pool.currentFeeBps / 100).toFixed(2)}%
                     </span>
-                    {pool.currentFee > pool.fee ? (
+                    {pool.currentFeeBps > pool.baseFeeBps ? (
                       <ArrowUpRight className="w-4 h-4 text-warning-400" />
-                    ) : pool.currentFee < pool.fee ? (
+                    ) : pool.currentFeeBps < pool.baseFeeBps ? (
                       <ArrowDownRight className="w-4 h-4 text-success-400" />
                     ) : null}
                   </div>
                 </td>
                 <td className="p-4 text-right">
-                  <span className="font-medium text-success-400">{pool.apy.toFixed(1)}%</span>
+                  <span className="font-medium text-dark-300">—</span>
                 </td>
                 <td className="p-4 text-right">
                   <button className="px-3 py-1 text-sm font-medium text-primary-400 hover:text-primary-300 transition-colors">

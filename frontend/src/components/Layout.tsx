@@ -11,6 +11,7 @@ import {
   AlertTriangle,
 } from 'lucide-react';
 import { useDashboardStore, selectCriticalAlerts } from '../store/dashboard';
+import { useLiveAgentState } from '../hooks/useLiveAgentState';
 
 const navItems = [
   { path: '/', icon: LayoutDashboard, label: 'Dashboard' },
@@ -22,6 +23,10 @@ const navItems = [
 
 export function Layout() {
   const criticalAlerts = useDashboardStore(selectCriticalAlerts);
+  const isConnected = useDashboardStore((s) => s.isConnected);
+  const error = useDashboardStore((s) => s.error);
+
+  useLiveAgentState();
 
   return (
     <div className="min-h-screen bg-dark-950 flex">
@@ -92,17 +97,34 @@ export function Layout() {
             <h2 className="text-lg font-semibold text-dark-100">
               AI-Powered LP Protection
             </h2>
-            <div className="flex items-center gap-2 px-3 py-1 rounded-full bg-success-900/30 border border-success-500/30">
-              <div className="w-2 h-2 rounded-full bg-success-500 animate-pulse" />
-              <span className="text-xs font-medium text-success-400">System Active</span>
+            <div
+              className={`flex items-center gap-2 px-3 py-1 rounded-full border ${
+                isConnected
+                  ? 'bg-success-900/30 border-success-500/30'
+                  : 'bg-danger-900/30 border-danger-500/30'
+              }`}
+              title={error || undefined}
+            >
+              <div
+                className={`w-2 h-2 rounded-full ${
+                  isConnected ? 'bg-success-500 animate-pulse' : 'bg-danger-500'
+                }`}
+              />
+              <span
+                className={`text-xs font-medium ${
+                  isConnected ? 'text-success-400' : 'text-danger-400'
+                }`}
+              >
+                {isConnected ? 'Live' : 'Offline'}
+              </span>
             </div>
           </div>
 
           <div className="flex items-center gap-4">
             {/* Network Status */}
             <div className="flex items-center gap-2 text-sm text-dark-400">
-              <div className="w-2 h-2 rounded-full bg-success-500" />
-              <span>Connected</span>
+              <div className={`w-2 h-2 rounded-full ${isConnected ? 'bg-success-500' : 'bg-danger-500'}`} />
+              <span>{isConnected ? 'Connected' : 'Disconnected'}</span>
             </div>
 
             {/* Connect Wallet */}

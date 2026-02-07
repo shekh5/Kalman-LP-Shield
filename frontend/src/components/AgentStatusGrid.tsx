@@ -1,58 +1,20 @@
 import { motion } from 'framer-motion';
 import { Eye, Shield, Activity, Zap, GitBranch } from 'lucide-react';
+import { useDashboardStore } from '../store/dashboard';
 
-// Mock agent data
-const mockAgents = [
-  {
-    id: 'price-monitor',
-    name: 'Price Monitor',
-    icon: Eye,
-    status: 'running' as const,
-    lastUpdate: Date.now() - 5000,
-    metrics: { 'Updates': 1250, 'Latency': '45ms' },
-    color: 'from-blue-500 to-cyan-500',
-  },
-  {
-    id: 'mev-detector',
-    name: 'MEV Detector',
-    icon: Shield,
-    status: 'running' as const,
-    lastUpdate: Date.now() - 2000,
-    metrics: { 'Scanned': 15420, 'Blocked': 23 },
-    color: 'from-red-500 to-orange-500',
-  },
-  {
-    id: 'risk-scoring',
-    name: 'Risk Scoring',
-    icon: Activity,
-    status: 'running' as const,
-    lastUpdate: Date.now() - 1000,
-    metrics: { 'Score': 35, 'Updates': 890 },
-    color: 'from-yellow-500 to-amber-500',
-  },
-  {
-    id: 'execution',
-    name: 'Execution',
-    icon: Zap,
-    status: 'running' as const,
-    lastUpdate: Date.now() - 8000,
-    metrics: { 'Txs': 156, 'Success': '99.2%' },
-    color: 'from-purple-500 to-pink-500',
-  },
-  {
-    id: 'cross-chain',
-    name: 'Cross-Chain',
-    icon: GitBranch,
-    status: 'running' as const,
-    lastUpdate: Date.now() - 30000,
-    metrics: { 'Bridges': 3, 'Volume': '$2.1M' },
-    color: 'from-green-500 to-emerald-500',
-  },
-];
+type AgentStatus = 'running' | 'paused' | 'error' | 'stopped';
 
-type AgentStatus = 'running' | 'paused' | 'error';
+const iconByType = {
+  'price-monitor': { icon: Eye, color: 'from-blue-500 to-cyan-500' },
+  'mev-detector': { icon: Shield, color: 'from-red-500 to-orange-500' },
+  'risk-scoring': { icon: Activity, color: 'from-yellow-500 to-amber-500' },
+  'execution': { icon: Zap, color: 'from-purple-500 to-pink-500' },
+  'cross-chain': { icon: GitBranch, color: 'from-green-500 to-emerald-500' },
+} as const;
 
 export function AgentStatusGrid() {
+  const agents = useDashboardStore((s) => s.agents);
+
   const getStatusIndicator = (status: AgentStatus) => {
     switch (status) {
       case 'running':
@@ -76,6 +38,13 @@ export function AgentStatusGrid() {
             <span className="text-xs text-danger-400">Error</span>
           </div>
         );
+      case 'stopped':
+        return (
+          <div className="flex items-center gap-1">
+            <div className="w-2 h-2 rounded-full bg-dark-500" />
+            <span className="text-xs text-dark-400">Stopped</span>
+          </div>
+        );
     }
   };
 
@@ -87,8 +56,10 @@ export function AgentStatusGrid() {
 
   return (
     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
-      {mockAgents.map((agent, index) => {
-        const Icon = agent.icon;
+      {agents.map((agent, index) => {
+        const iconCfg = iconByType[agent.type];
+        const Icon = iconCfg?.icon ?? Activity;
+        const color = iconCfg?.color ?? 'from-slate-500 to-slate-700';
         
         return (
           <motion.div
@@ -99,7 +70,7 @@ export function AgentStatusGrid() {
             className="p-4 bg-dark-800/50 rounded-lg border border-dark-700/50 hover:border-dark-600 transition-all"
           >
             <div className="flex items-center justify-between mb-3">
-              <div className={`w-8 h-8 rounded-lg bg-gradient-to-br ${agent.color} flex items-center justify-center`}>
+              <div className={`w-8 h-8 rounded-lg bg-gradient-to-br ${color} flex items-center justify-center`}>
                 <Icon className="w-4 h-4 text-white" />
               </div>
               {getStatusIndicator(agent.status)}
@@ -123,7 +94,7 @@ export function AgentStatusGrid() {
             {agent.status === 'running' && (
               <div className="mt-3 h-1 bg-dark-700 rounded-full overflow-hidden">
                 <motion.div
-                  className={`h-full rounded-full bg-gradient-to-r ${agent.color}`}
+                  className={`h-full rounded-full bg-gradient-to-r ${color}`}
                   initial={{ width: '0%', x: '-100%' }}
                   animate={{ width: '30%', x: ['0%', '350%'] }}
                   transition={{ duration: 1.5, repeat: Infinity, ease: 'linear' }}

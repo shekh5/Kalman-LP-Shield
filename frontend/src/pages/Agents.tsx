@@ -1,116 +1,14 @@
 import { motion } from 'framer-motion';
 import {
-  Eye,
-  Shield,
-  Zap,
-  GitBranch,
   Activity,
-  Play,
-  Pause,
   RefreshCw,
   Terminal,
 } from 'lucide-react';
-import { useState } from 'react';
-
-// Agent configurations
-const agentConfigs = [
-  {
-    id: 'price-monitor',
-    name: 'Price Monitor',
-    description: 'Monitors oracle feeds and updates Kalman filter state',
-    icon: Eye,
-    color: 'from-blue-500 to-cyan-500',
-    metrics: {
-      'Updates/min': 120,
-      'Latency (ms)': 45,
-      'Oracle Sources': 4,
-    },
-  },
-  {
-    id: 'mev-detector',
-    name: 'MEV Detector',
-    description: 'Detects sandwich attacks and frontrunning attempts',
-    icon: Shield,
-    color: 'from-red-500 to-orange-500',
-    metrics: {
-      'Scanned Txs': 15420,
-      'Attacks Detected': 23,
-      'False Positives': 2,
-    },
-  },
-  {
-    id: 'risk-scoring',
-    name: 'Risk Scoring',
-    description: 'Calculates composite risk scores from multiple factors',
-    icon: Activity,
-    color: 'from-yellow-500 to-amber-500',
-    metrics: {
-      'Current Score': 35,
-      'Score Updates': 890,
-      'Regime Changes': 12,
-    },
-  },
-  {
-    id: 'execution',
-    name: 'Execution Agent',
-    description: 'Executes fee updates and emergency actions via Flashbots',
-    icon: Zap,
-    color: 'from-purple-500 to-pink-500',
-    metrics: {
-      'Txs Submitted': 156,
-      'Success Rate': '99.2%',
-      'Gas Saved': '12.5 ETH',
-    },
-  },
-  {
-    id: 'cross-chain',
-    name: 'Cross-Chain',
-    description: 'Manages cross-chain liquidity via LI.FI integration',
-    icon: GitBranch,
-    color: 'from-green-500 to-emerald-500',
-    metrics: {
-      'Bridges Used': 3,
-      'Volume Bridged': '$2.1M',
-      'Chains Active': 5,
-    },
-  },
-];
-
-type AgentStatus = 'running' | 'paused' | 'error';
+import { useDashboardStore } from '../store/dashboard';
 
 export function Agents() {
-  const [agentStatuses, setAgentStatuses] = useState<Record<string, AgentStatus>>(
-    Object.fromEntries(agentConfigs.map((a) => [a.id, 'running' as AgentStatus]))
-  );
-
-  const toggleAgent = (id: string) => {
-    setAgentStatuses((prev) => ({
-      ...prev,
-      [id]: prev[id] === 'running' ? 'paused' : 'running',
-    }));
-  };
-
-  const getStatusColor = (status: AgentStatus) => {
-    switch (status) {
-      case 'running':
-        return 'bg-success-500';
-      case 'paused':
-        return 'bg-warning-500';
-      case 'error':
-        return 'bg-danger-500';
-    }
-  };
-
-  const getStatusText = (status: AgentStatus) => {
-    switch (status) {
-      case 'running':
-        return 'Running';
-      case 'paused':
-        return 'Paused';
-      case 'error':
-        return 'Error';
-    }
-  };
+  const agents = useDashboardStore((s) => s.agents);
+  const isConnected = useDashboardStore((s) => s.isConnected);
 
   return (
     <div className="space-y-6">
@@ -134,9 +32,25 @@ export function Agents() {
 
       {/* Agent Cards */}
       <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-6">
-        {agentConfigs.map((agent, index) => {
-          const status = agentStatuses[agent.id];
-          const Icon = agent.icon;
+        {agents.map((agent, index) => {
+          const status = agent.status;
+          const Icon = Activity;
+
+          const color =
+            agent.type === 'price-monitor'
+              ? 'from-blue-500 to-cyan-500'
+              : agent.type === 'mev-detector'
+                ? 'from-red-500 to-orange-500'
+                : agent.type === 'risk-scoring'
+                  ? 'from-yellow-500 to-amber-500'
+                  : agent.type === 'execution'
+                    ? 'from-purple-500 to-pink-500'
+                    : 'from-green-500 to-emerald-500';
+
+          const getStatusColor = (s: string) =>
+            s === 'running' ? 'bg-success-500' : s === 'paused' ? 'bg-warning-500' : 'bg-danger-500';
+          const getStatusText = (s: string) =>
+            s === 'running' ? 'Running' : s === 'paused' ? 'Paused' : 'Error';
 
           return (
             <motion.div
@@ -150,7 +64,7 @@ export function Agents() {
               <div className="flex items-start justify-between mb-4">
                 <div className="flex items-center gap-3">
                   <div
-                    className={`w-12 h-12 rounded-xl bg-gradient-to-br ${agent.color} flex items-center justify-center`}
+                    className={`w-12 h-12 rounded-xl bg-gradient-to-br ${color} flex items-center justify-center`}
                   >
                     <Icon className="w-6 h-6 text-white" />
                   </div>
@@ -163,23 +77,18 @@ export function Agents() {
                   </div>
                 </div>
                 <button
-                  onClick={() => toggleAgent(agent.id)}
-                  className={`p-2 rounded-lg transition-colors ${
-                    status === 'running'
-                      ? 'bg-dark-700 hover:bg-dark-600 text-dark-300'
-                      : 'bg-success-900/30 hover:bg-success-900/50 text-success-400'
-                  }`}
+                  disabled
+                  className="p-2 rounded-lg bg-dark-800 text-dark-500 cursor-not-allowed"
+                  title={isConnected ? 'Controls not enabled in demo' : 'Offline'}
                 >
-                  {status === 'running' ? (
-                    <Pause className="w-4 h-4" />
-                  ) : (
-                    <Play className="w-4 h-4" />
-                  )}
+                  <Terminal className="w-4 h-4" />
                 </button>
               </div>
 
               {/* Description */}
-              <p className="text-sm text-dark-400 mb-4">{agent.description}</p>
+              <p className="text-sm text-dark-400 mb-4">
+                Live status + metrics from the agent service.
+              </p>
 
               {/* Metrics */}
               <div className="space-y-3 pt-4 border-t border-dark-700">
@@ -197,7 +106,7 @@ export function Agents() {
                   <div className="flex items-center gap-2">
                     <div className="flex-1 h-1 bg-dark-700 rounded-full overflow-hidden">
                       <motion.div
-                        className={`h-full rounded-full bg-gradient-to-r ${agent.color}`}
+                        className={`h-full rounded-full bg-gradient-to-r ${color}`}
                         initial={{ width: '0%' }}
                         animate={{ width: ['0%', '100%', '0%'] }}
                         transition={{ duration: 2, repeat: Infinity, ease: 'linear' }}

@@ -116,9 +116,9 @@ export function AlertList({ alerts }: AlertListProps) {
                     </span>
                   </div>
                   <p className="text-sm text-dark-200">{alert.message}</p>
-                  {alert.poolAddress && (
+                  {alert.poolId && (
                     <p className="text-xs text-dark-500 font-mono mt-1 truncate">
-                      Pool: {alert.poolAddress}
+                      Pool: {alert.poolId}
                     </p>
                   )}
                 </div>

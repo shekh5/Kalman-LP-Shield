@@ -1,0 +1,45 @@
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+
+.env
+.venv/
+venv/
+
+.git/
+
+node_modules/
+
+dist/
+build/
+
+logs/
+*.log
+
+.cache/
+
+data/
+datasets/
+
+.idea/
+.vscode/
+
+# Also ignore nested copies (Docker patterns are relative; top-level entries above
+# do NOT reliably exclude nested folders like frontend/node_modules).
+**/node_modules/
+**/dist/
+**/build/
+
+# Solidity / Foundry artifacts and dependencies (can be very large)
+contracts/out/
+contracts/cache/
+contracts/lib/
+
+# Python tooling caches
+**/.pytest_cache/
+**/.mypy_cache/
+**/.ruff_cache/
+
+# Misc
+**/.DS_Store

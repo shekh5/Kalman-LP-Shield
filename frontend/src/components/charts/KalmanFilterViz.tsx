@@ -1,4 +1,3 @@
-import { useEffect, useRef } from 'react';
 import { motion } from 'framer-motion';
 import {
   LineChart,
@@ -8,38 +7,20 @@ import {
   CartesianGrid,
   Tooltip,
   ResponsiveContainer,
-  ReferenceLine,
 } from 'recharts';
-import { useDashboardStore, selectKalmanState, selectKalmanHistory } from '../../store/dashboard';
-
-// Generate mock history data
-const generateMockHistory = () => {
-  const data = [];
-  let price = 2000;
-  let velocity = 0;
-  
-  for (let i = 0; i < 100; i++) {
-    velocity += (Math.random() - 0.5) * 2;
-    velocity *= 0.95; // Decay
-    price += velocity + (Math.random() - 0.5) * 10;
-    
-    data.push({
-      time: i,
-      price: price,
-      predicted: price + (Math.random() - 0.5) * 5,
-      upper: price + 30,
-      lower: price - 30,
-      velocity: velocity,
-    });
-  }
-  
-  return data;
-};
-
-const mockHistory = generateMockHistory();
+import { useDashboardStore, selectKalmanState, selectAnalytics } from '../../store/dashboard';
 
 export function KalmanFilterViz() {
   const kalmanState = useDashboardStore(selectKalmanState);
+  const analytics = useDashboardStore(selectAnalytics);
+
+  const history = analytics.priceHistory.map((p, idx) => ({
+    idx,
+    actual: p.actual,
+    estimate: p.estimate,
+    upper: p.upper95,
+    lower: p.lower95,
+  }));
 
   return (
     <div className="space-y-6">
@@ -70,10 +51,10 @@ export function KalmanFilterViz() {
       {/* Price Chart with Predictions */}
       <div className="h-64">
         <ResponsiveContainer width="100%" height="100%">
-          <LineChart data={mockHistory}>
+          <LineChart data={history}>
             <CartesianGrid strokeDasharray="3 3" stroke="#334155" />
             <XAxis 
-              dataKey="time" 
+              dataKey="idx" 
               stroke="#64748b"
               tick={{ fontSize: 10 }}
             />
@@ -114,7 +95,7 @@ export function KalmanFilterViz() {
             {/* Actual price */}
             <Line
               type="monotone"
-              dataKey="price"
+              dataKey="actual"
               stroke="#f59e0b"
               strokeWidth={2}
               dot={false}
@@ -124,7 +105,7 @@ export function KalmanFilterViz() {
             {/* Predicted price */}
             <Line
               type="monotone"
-              dataKey="predicted"
+              dataKey="estimate"
               stroke="#0ea5e9"
               strokeWidth={2}
               dot={false}
