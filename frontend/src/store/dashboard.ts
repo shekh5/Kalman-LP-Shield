@@ -101,7 +101,6 @@ interface DashboardState {
   setAlerts: (alerts: AlertInfo[]) => void;
   setAnalytics: (analytics: AnalyticsSnapshot) => void;
   ingestSnapshot: (snapshot: {
-    demoMode?: boolean;
     timestamp?: number;
     pools: PoolInfo[];
     agents: AgentStatus[];

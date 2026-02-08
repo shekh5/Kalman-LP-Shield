@@ -81,13 +81,11 @@ kalmanguard/
 - **Docker Desktop** ([download](https://www.docker.com/products/docker-desktop/))
 - **Foundry** (optional, for contract deployment) ([install](https://getfoundry.sh/))
 
-### One-Click Local Demo (Recommended)
-
-The fastest way to run KalmanGuard locally:
+### One-Click Local Start (Sepolia)
 
 ```powershell
 # Windows PowerShell
-.\start.ps1 -Mode demo
+.\start.ps1
 ```
 
 This will:
@@ -110,11 +108,11 @@ curl http://localhost:3001/health
 cd frontend && npm install && npm run dev
 ```
 
-### Sepolia Testnet Demo (For Judges)
+### Sepolia Testnet (For Judges)
 
-See [docs/JUDGE_DEMO_SEPOLIA.md](docs/JUDGE_DEMO_SEPOLIA.md) for the 3-phase on-chain proof flow:
+See [docs/JUDGE_SEPOLIA.md](docs/JUDGE_SEPOLIA.md) for the 3-phase on-chain proof flow:
 1. **Phase 1:** Deploy & verify contracts on Sepolia
-2. **Phase 2:** Run backend connected to Sepolia (`DEMO_MODE=false`)
+2. **Phase 2:** Run backend connected to Sepolia
 3. **Phase 3:** Run frontend locally
 
 Safety notes:
@@ -141,9 +139,7 @@ All configuration is in the root `.env` file. Copy from `.env.example`:
 cp .env.example .env
 ```
 
-**Required for Demo Mode (default):** Nothing! Demo mode works out of the box.
-
-**Required for Sepolia Mode:**
+**Required for Sepolia:**
 ```bash
 PRIVATE_KEY=0x...           # 32-byte hex deployer key
 ETHERSCAN_API_KEY=...       # For contract verification

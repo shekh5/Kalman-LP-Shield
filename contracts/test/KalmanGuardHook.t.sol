@@ -254,10 +254,22 @@ contract KalmanGuardHookTest is Test {
         });
         
         hook.setFeeConfig(poolId, newConfig);
-        
-        KalmanGuardHook.FeeConfig memory stored = hook.feeConfigs(poolId);
-        assertEq(stored.baseFee, 5000);
-        assertEq(stored.maxFee, 15000);
+
+        (
+            uint24 baseFee,
+            uint24 maxFee,
+            uint24 minFee,
+            uint256 steepness,
+            uint256 threshold,
+            uint256 cooldownPeriod
+        ) = hook.feeConfigs(poolId);
+
+        assertEq(baseFee, 5000);
+        assertEq(maxFee, 15000);
+        assertEq(minFee, 1000);
+        assertEq(steepness, 7);
+        assertEq(threshold, 6000);
+        assertEq(cooldownPeriod, 24);
     }
     
     function testFuzz_RiskScoreInRange(uint256 riskScore) public {

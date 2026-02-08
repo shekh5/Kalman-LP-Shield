@@ -106,7 +106,7 @@ export const DEFAULT_CHAINS: Record<string, ChainConfig> = {
   sepolia: {
     id: 11155111,
     name: 'sepolia',
-    rpcUrl: process.env.RPC_URL_SEPOLIA || 'https://0xrpc.io/sep',
+    rpcUrl: process.env.RPC_URL_SEPOLIA || 'https://ethereum-sepolia-rpc.publicnode.com',
     wsUrl: process.env.WS_URL_SEPOLIA,
     poolManagerAddress: process.env.POOL_MANAGER_ADDRESS_SEPOLIA || '0x000000000000000000000000000000000000dEaD',
     hookAddress: process.env.KALMANGUARD_HOOK_SEPOLIA || '0x0000000000000000000000000000000000000000',

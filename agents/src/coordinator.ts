@@ -9,7 +9,6 @@ import { ethers } from 'ethers';
 import { DEFAULT_CHAINS, AgentRole, ChainConfig } from './config';
 import { startHttpServer } from './api/httpServer';
 import { StateStore } from './api/stateStore';
-import { DemoRunner } from './demo/demoRunner';
 import {
   PriceMonitorAgent,
   MEVDetectorAgent,
@@ -41,7 +40,6 @@ class AgentCoordinator {
 
   private store: StateStore;
   private apiServer: ReturnType<typeof startHttpServer> | null = null;
-  private demoRunner: DemoRunner | null = null;
 
   constructor(config: Partial<CoordinatorConfig> = {}) {
     const requested = (process.env.TARGET_CHAINS || process.env.CHAINS || '')
@@ -71,8 +69,7 @@ class AgentCoordinator {
       ...config,
     };
 
-    const demoMode = (process.env.DEMO_MODE || 'true').toLowerCase() === 'true';
-    this.store = new StateStore(demoMode);
+    this.store = new StateStore();
   }
 
   /**
@@ -90,22 +87,8 @@ class AgentCoordinator {
 
       const kalmanEngineUrl = process.env.KALMAN_ENGINE_URL || 'http://localhost:8000';
 
-      // In demo mode, run synthetic pools continuously and broadcast snapshots to the UI
-      if (this.store.getPublicState().demoMode) {
-        this.demoRunner = new DemoRunner(this.store, {
-          kalmanEngineUrl,
-          tickMs: Number(process.env.DEMO_TICK_MS || 1500),
-          seed: Number(process.env.DEMO_SEED || 1337),
-        });
-
-        void this.demoRunner.start((snapshot) => {
-          this.apiServer?.broadcast({ type: 'snapshot', data: snapshot });
-        });
-
-        this.isRunning = true;
-        logger.info('Demo mode started (no API keys required)');
-        return;
-      }
+      // Sepolia-only mode: initialize agents and stream live snapshots.
+      void kalmanEngineUrl; // reserved for future direct push; agents use it via env.
 
       // Initialize agents based on configuration
       await this.initializeAgents();
@@ -361,11 +344,6 @@ class AgentCoordinator {
   async stop(): Promise<void> {
     logger.info('Stopping Agent Coordinator');
     this.isRunning = false;
-
-    if (this.demoRunner) {
-      this.demoRunner.stop();
-      this.demoRunner = null;
-    }
 
     const stopPromises: Promise<void>[] = [];
 

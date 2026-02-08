@@ -13,12 +13,9 @@ services:
       - NODE_ENV=production
       - PORT=3001
       - HOST=0.0.0.0
-      - DEMO_MODE=${DEMO_MODE:-true}
-      - TARGET_CHAINS=${TARGET_CHAINS:-}
-      - DEMO_TICK_MS=${DEMO_TICK_MS:-1500}
-      - DEMO_SEED=${DEMO_SEED:-1337}
+      - TARGET_CHAINS=sepolia
       - REDIS_URL=redis://redis:6379
-      - RPC_URL_SEPOLIA=${RPC_URL_SEPOLIA:-https://0xrpc.io/sep}
+      - RPC_URL_SEPOLIA=${RPC_URL_SEPOLIA:-https://ethereum-sepolia-rpc.publicnode.com}
       - RPC_URL_ETHEREUM=${RPC_URL_ETHEREUM:-}
       - RPC_URL_MAINNET=${RPC_URL_MAINNET:-}
       - RPC_URL_ARBITRUM=${RPC_URL_ARBITRUM:-}
@@ -41,7 +38,7 @@ services:
     networks:
       - kalmanguard-network
     healthcheck:
-      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:3001/health"]
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "-qO-", "http://localhost:3001/health"]
       interval: 30s
       timeout: 10s
       retries: 3

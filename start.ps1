@@ -1,9 +1,4 @@
-# KalmanGuard - One-Click Local Demo Startup Script
-# This script starts the complete KalmanGuard stack locally
-
 param(
-    [ValidateSet('demo', 'sepolia')]
-    [string]$Mode = 'demo',
     [switch]$SkipBuild,
     [switch]$FrontendOnly
 )
@@ -11,9 +6,9 @@ param(
 $ErrorActionPreference = "Stop"
 
 Write-Host ""
-Write-Host "╔═══════════════════════════════════════════════════════════╗" -ForegroundColor Cyan
-Write-Host "║              KalmanGuard Local Demo Launcher              ║" -ForegroundColor Cyan
-Write-Host "╚═══════════════════════════════════════════════════════════╝" -ForegroundColor Cyan
+Write-Host "+-----------------------------------------------------------+" -ForegroundColor Cyan
+Write-Host "|                 KalmanGuard Local Launcher                |" -ForegroundColor Cyan
+Write-Host "+-----------------------------------------------------------+" -ForegroundColor Cyan
 Write-Host ""
 
 $RootDir = $PSScriptRoot
@@ -68,13 +63,7 @@ function Start-Backend {
     Write-Host "[1/3] Starting Docker backend..." -ForegroundColor Cyan
     
     $composeFile = Join-Path $RootDir "docker\docker-compose.yml"
-    
-    if ($Mode -eq 'sepolia') {
-        $overrideFile = Join-Path $RootDir "docker\docker-compose.sepolia.yml"
-        $composeArgs = "-f `"$composeFile`" -f `"$overrideFile`""
-    } else {
-        $composeArgs = "-f `"$composeFile`""
-    }
+    $composeArgs = "--env-file `"$RootDir\.env`" -f `"$composeFile`""
     
     $services = "redis kalman-engine agents"
     
@@ -133,7 +122,7 @@ function Start-Frontend {
     }
     
     Write-Host ""
-    Write-Host "═══════════════════════════════════════════════════════════" -ForegroundColor Green
+    Write-Host "===========================================================" -ForegroundColor Green
     Write-Host ""
     Write-Host " KalmanGuard is starting!" -ForegroundColor Green
     Write-Host ""
@@ -141,12 +130,12 @@ function Start-Frontend {
     Write-Host " Kalman Engine: http://localhost:8000" -ForegroundColor White
     Write-Host " Frontend:     http://localhost:5173 (opening soon...)" -ForegroundColor White
     Write-Host ""
-    Write-Host " Mode: $Mode" -ForegroundColor $(if ($Mode -eq 'demo') { 'Yellow' } else { 'Cyan' })
+    Write-Host " Network: Sepolia (single mode)" -ForegroundColor Cyan
     Write-Host ""
     Write-Host " Press Ctrl+C to stop the frontend dev server." -ForegroundColor Gray
     Write-Host " Run 'docker compose -f docker/docker-compose.yml down' to stop backend." -ForegroundColor Gray
     Write-Host ""
-    Write-Host "═══════════════════════════════════════════════════════════" -ForegroundColor Green
+    Write-Host "===========================================================" -ForegroundColor Green
     Write-Host ""
     
     # Start Vite (this will block)

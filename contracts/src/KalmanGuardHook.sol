@@ -1,9 +1,10 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.24;
 
-import {BaseHook} from "v4-periphery/src/base/hooks/BaseHook.sol";
+import {BaseHook} from "./BaseHook.sol";
 import {Hooks} from "v4-core/src/libraries/Hooks.sol";
 import {IPoolManager} from "v4-core/src/interfaces/IPoolManager.sol";
+import {ModifyLiquidityParams, SwapParams} from "v4-core/src/types/PoolOperation.sol";
 import {PoolKey} from "v4-core/src/types/PoolKey.sol";
 import {PoolId, PoolIdLibrary} from "v4-core/src/types/PoolId.sol";
 import {BalanceDelta} from "v4-core/src/types/BalanceDelta.sol";
@@ -211,17 +212,14 @@ contract KalmanGuardHook is BaseHook {
     function beforeInitialize(
         address,
         PoolKey calldata key,
-        uint160,
-        bytes calldata hookData
+        uint160
     ) external override returns (bytes4) {
         PoolId poolId = key.toId();
         
         // Initialize with default or custom configuration
         FeeConfig memory config = defaultFeeConfig;
-        if (hookData.length > 0) {
-            config = abi.decode(hookData, (FeeConfig));
-            _validateFeeConfig(config);
-        }
+        // Note: current Uniswap v4 IHooks.beforeInitialize does not include hookData.
+        // For demo purposes, we always initialize using defaultFeeConfig.
         
         feeConfigs[poolId] = config;
         
@@ -252,7 +250,7 @@ contract KalmanGuardHook is BaseHook {
     function beforeSwap(
         address,
         PoolKey calldata key,
-        IPoolManager.SwapParams calldata,
+        SwapParams calldata,
         bytes calldata
     ) external override notPaused returns (bytes4, BeforeSwapDelta, uint24) {
         PoolId poolId = key.toId();
@@ -281,7 +279,7 @@ contract KalmanGuardHook is BaseHook {
     function afterSwap(
         address,
         PoolKey calldata key,
-        IPoolManager.SwapParams calldata,
+        SwapParams calldata,
         BalanceDelta delta,
         bytes calldata
     ) external override returns (bytes4, int128) {
@@ -303,7 +301,7 @@ contract KalmanGuardHook is BaseHook {
     function beforeAddLiquidity(
         address,
         PoolKey calldata key,
-        IPoolManager.ModifyLiquidityParams calldata,
+        ModifyLiquidityParams calldata,
         bytes calldata
     ) external view override notPaused returns (bytes4) {
         PoolId poolId = key.toId();
@@ -320,7 +318,7 @@ contract KalmanGuardHook is BaseHook {
     function beforeRemoveLiquidity(
         address,
         PoolKey calldata key,
-        IPoolManager.ModifyLiquidityParams calldata,
+        ModifyLiquidityParams calldata,
         bytes calldata
     ) external view override returns (bytes4) {
         // Always allow liquidity removal (even in emergency - users should be able to exit)

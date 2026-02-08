@@ -66,7 +66,6 @@ export function startHttpServer(store: StateStore, config: ServerConfig): Starte
         return json(res, 200, {
           status: 'ok',
           timestamp: Date.now(),
-          demoMode: store.getPublicState().demoMode,
           uptimeSec: process.uptime(),
         });
       }
@@ -106,11 +105,6 @@ export function startHttpServer(store: StateStore, config: ServerConfig): Starte
 
       if (req.method === 'GET' && path === '/api/analytics') {
         return json(res, 200, store.getAnalytics());
-      }
-
-      if (req.method === 'POST' && path === '/api/demo/reset') {
-        store.reset();
-        return json(res, 200, { ok: true });
       }
 
       if (req.method === 'POST' && path.startsWith('/api/alerts/') && path.endsWith('/dismiss')) {

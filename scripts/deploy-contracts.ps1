@@ -55,23 +55,23 @@ switch ($Network) {
     forge script script/Deploy.s.sol --fork-url http://localhost:8545 --broadcast
   }
   'sepolia' {
-    if (-not $env:RPC_URL_SEPOLIA) { $env:RPC_URL_SEPOLIA = 'https://0xrpc.io/sep' }
+    if (-not $env:RPC_URL_SEPOLIA) { $env:RPC_URL_SEPOLIA = 'https://ethereum-sepolia-rpc.publicnode.com' }
     Write-Host "Deploying to Sepolia..." -ForegroundColor Cyan
     Write-Host "RPC: $env:RPC_URL_SEPOLIA" -ForegroundColor Gray
     Write-Host "Explorer: https://sepolia.etherscan.io" -ForegroundColor Gray
-    forge script script/Deploy.s.sol --rpc-url $env:RPC_URL_SEPOLIA --broadcast --verify
+    forge script script/Deploy.s.sol:DeployKalmanGuard --rpc-url $env:RPC_URL_SEPOLIA --broadcast --verify
   }
   'mainnet' {
-    forge script script/Deploy.s.sol --rpc-url $env:RPC_URL_MAINNET --broadcast --verify
+    forge script script/Deploy.s.sol:DeployKalmanGuard --rpc-url $env:RPC_URL_MAINNET --broadcast --verify
   }
   'arbitrum' {
-    forge script script/Deploy.s.sol --rpc-url $env:RPC_URL_ARBITRUM --broadcast --verify
+    forge script script/Deploy.s.sol:DeployKalmanGuard --rpc-url $env:RPC_URL_ARBITRUM --broadcast --verify
   }
   'optimism' {
-    forge script script/Deploy.s.sol --rpc-url $env:RPC_URL_OPTIMISM --broadcast --verify
+    forge script script/Deploy.s.sol:DeployKalmanGuard --rpc-url $env:RPC_URL_OPTIMISM --broadcast --verify
   }
   'base' {
-    forge script script/Deploy.s.sol --rpc-url $env:RPC_URL_BASE --broadcast --verify
+    forge script script/Deploy.s.sol:DeployKalmanGuard --rpc-url $env:RPC_URL_BASE --broadcast --verify
   }
 }
 

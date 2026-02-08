@@ -19,10 +19,10 @@ if (-not (Test-Path ".env")) {
 # Build and start services
 Write-Host "🔨 Building Docker images..." -ForegroundColor Cyan
 Set-Location docker
-docker compose build
+docker compose --env-file ..\.env build
 
 Write-Host "🚀 Starting services..." -ForegroundColor Cyan
-docker compose up -d
+docker compose --env-file ..\.env up -d
 
 Write-Host ""
 Write-Host "✅ KalmanGuard is running!" -ForegroundColor Green

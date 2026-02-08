@@ -108,9 +108,9 @@ contract ENSIntegration {
     
     /// @notice Set address record
     /// @param node The ENS namehash
-    /// @param addr The address to set
-    function setAddr(bytes32 node, address addr) external onlyOwner {
-        addressRecords[node] = addr;
+    /// @param _addr The address to set
+    function setAddr(bytes32 node, address _addr) external onlyOwner {
+        addressRecords[node] = _addr;
     }
     
     /// @notice Get address record
@@ -274,9 +274,9 @@ contract ENSIntegration {
     //////////////////////////////////////////////////////////////*/
     
     /// @notice Convert address to string
-    function _addressToString(address addr) internal pure returns (string memory) {
+    function _addressToString(address _addr) internal pure returns (string memory) {
         bytes memory alphabet = "0123456789abcdef";
-        bytes memory data = abi.encodePacked(addr);
+        bytes memory data = abi.encodePacked(_addr);
         bytes memory str = new bytes(42);
         str[0] = "0";
         str[1] = "x";

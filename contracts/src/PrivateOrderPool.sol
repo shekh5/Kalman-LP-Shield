@@ -2,6 +2,7 @@
 pragma solidity ^0.8.24;
 
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
+
 import {ReentrancyGuard} from "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
 
 /// @title PrivateOrderPool
@@ -361,9 +362,9 @@ contract PrivateOrderPool is ReentrancyGuard {
     
     /// @notice Check if a commitment can be revealed
     /// @param commitment The commitment hash
-    /// @return canReveal Whether reveal is possible
+    /// @return _canReveal Whether reveal is possible
     /// @return reason Reason if cannot reveal
-    function canReveal(bytes32 commitment) external view returns (bool canReveal, string memory reason) {
+    function canReveal(bytes32 commitment) external view returns (bool _canReveal, string memory reason) {
         CommittedOrder storage order = commitments[commitment];
         
         if (order.sender == address(0)) return (false, "Commitment not found");
@@ -378,9 +379,9 @@ contract PrivateOrderPool is ReentrancyGuard {
     
     /// @notice Check if a commitment can be executed
     /// @param commitment The commitment hash
-    /// @return canExecute Whether execution is possible
+    /// @return _canExecute Whether execution is possible
     /// @return reason Reason if cannot execute
-    function canExecute(bytes32 commitment) external view returns (bool canExecute, string memory reason) {
+    function canExecute(bytes32 commitment) external view returns (bool _canExecute, string memory reason) {
         CommittedOrder storage order = commitments[commitment];
         
         if (order.sender == address(0)) return (false, "Commitment not found");

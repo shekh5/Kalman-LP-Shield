@@ -7,7 +7,7 @@
 - Python 3.11+ (for local development)
 - Foundry (for smart contract deployment)
 
-> For hackathon judging, you can run in **DEMO_MODE** with **no API keys** and no RPC URLs.
+This repository is configured for a single mode: **Sepolia testnet**.
 
 ## Local Development
 
@@ -21,8 +21,7 @@ cd kalmanguard
 # Copy environment file (optional)
 cp .env.example .env
 
-# Judge-friendly demo mode (no keys required)
-# DEMO_MODE=true is the default in docker-compose.yml
+# Sepolia-only mode: configure .env then start services
 
 # Start all services
 ./scripts/start-dev.sh     # Linux/Mac
@@ -31,7 +30,7 @@ cp .env.example .env
 
 For the Sepolia judging flow (deploy + local brain + local face), use:
 
-- `docs/JUDGE_DEMO_SEPOLIA.md`
+- `docs/JUDGE_SEPOLIA.md`
 
 ### Service URLs
 - Frontend: http://localhost:3000
@@ -108,7 +107,7 @@ cd kalmanguard
 # Optional: create .env for overrides
 cp .env.example .env
 
-# Run in demo mode (default): no RPC URLs or private keys required
+# Run (Sepolia): requires RPC + faucet-funded key
 docker compose -f docker/docker-compose.yml up -d --build
 ```
 

@@ -49,7 +49,6 @@ export interface AnalyticsSnapshot {
 }
 
 export interface PublicState {
-  demoMode: boolean;
   timestamp: number;
   pools: PoolState[];
   agents: AgentState[];
@@ -62,7 +61,6 @@ function clamp(n: number, min: number, max: number) {
 }
 
 export class StateStore {
-  private demoMode: boolean;
   private pools: Map<string, PoolState> = new Map();
   private agents: Map<string, AgentState> = new Map();
   private alerts: AlertState[] = [];
@@ -78,9 +76,7 @@ export class StateStore {
     ],
   };
 
-  constructor(demoMode: boolean) {
-    this.demoMode = demoMode;
-
+  constructor() {
     // Seed baseline agent list so UI always renders something.
     this.setAgent({
       id: 'price-monitor',
@@ -94,7 +90,7 @@ export class StateStore {
       id: 'mev-detector',
       name: 'MEV Detector',
       type: 'mev-detector',
-      status: demoMode ? 'running' : 'paused',
+      status: 'running',
       lastUpdate: Date.now(),
       metrics: { scannedTx: 0, attacks: 0 },
     });
@@ -110,7 +106,7 @@ export class StateStore {
       id: 'execution',
       name: 'Execution',
       type: 'execution',
-      status: demoMode ? 'running' : 'paused',
+      status: 'running',
       lastUpdate: Date.now(),
       metrics: { txSubmitted: 0, successRate: 1 },
     });
@@ -118,7 +114,7 @@ export class StateStore {
       id: 'cross-chain',
       name: 'Cross-Chain',
       type: 'cross-chain',
-      status: demoMode ? 'running' : 'paused',
+      status: 'running',
       lastUpdate: Date.now(),
       metrics: { bridges: 0, volumeUsd: 0 },
     });
@@ -191,7 +187,7 @@ export class StateStore {
     }].slice(-300);
 
     // Risk history (aggregate)
-    const feesCollectedUsd = (point.feeBps / 1e4) * 1000; // demo rough
+    const feesCollectedUsd = (point.feeBps / 1e4) * 1000; // rough placeholder
     this.analytics.riskHistory = [...this.analytics.riskHistory, {
       t: point.t,
       risk: point.risk,
@@ -227,7 +223,6 @@ export class StateStore {
 
   getPublicState(): PublicState {
     return {
-      demoMode: this.demoMode,
       timestamp: Date.now(),
       pools: this.getPools(),
       agents: this.getAgents(),
